@@ -101,6 +101,13 @@ export class AudioRecorder extends EventEmitter {
       this.stream = undefined;
       this.recordingWorklet = undefined;
       this.vuWorklet = undefined;
+      this.recording = false;
+      
+      // Close the audioContext to ensure it's fully cleaned up
+      if (this.audioContext && this.audioContext.state !== 'closed') {
+        this.audioContext.close();
+      }
+      this.audioContext = undefined;
     };
     if (this.starting) {
       this.starting.then(handleStop);
