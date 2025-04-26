@@ -16,6 +16,7 @@
 
 import { useState, useEffect } from "react";
 import { UseMediaStreamResult } from "./use-media-stream-mux";
+import { isMobileDevice } from "../lib/utils";
 
 export function useWebcam(): UseMediaStreamResult {
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -41,12 +42,33 @@ export function useWebcam(): UseMediaStreamResult {
   }, [stream]);
 
   const start = async () => {
-    const mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-    });
-    setStream(mediaStream);
-    setIsStreaming(true);
-    return mediaStream;
+    // For mobile devices, explicitly request the rear camera
+    const constraints = isMobileDevice() 
+      ? {
+          video: {
+            facingMode: { exact: "environment" }, // Force rear camera
+          },
+        }
+      : { video: true };
+    
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      setIsStreaming(true);
+      return mediaStream;
+    } catch (error) {
+      // If rear camera fails, fall back to any available camera
+      if (isMobileDevice()) {
+        console.log("Rear camera unavailable, falling back to any camera");
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+        setStream(mediaStream);
+        setIsStreaming(true);
+        return mediaStream;
+      }
+      throw error;
+    }
   };
 
   const stop = () => {

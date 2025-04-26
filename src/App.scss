@@ -171,3 +171,24 @@ body {
   border-radius: 32px;
   max-height: fit-content;
 }
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .streaming-console {
+    flex-direction: column;
+    
+    main {
+      width: 100%;
+      height: calc(100vh - 60px); /* Adjust for mobile UI */
+    }
+    
+    .main-app-area {
+      width: 100%;
+      height: calc(100% - 60px);
+    }
+    
+    .control-tray {
+      width: 100%;
+    }
+  }
+}

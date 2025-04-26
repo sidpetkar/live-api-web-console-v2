@@ -21,6 +21,7 @@ import SidePanel from "./components/side-panel/SidePanel";
 import { Altair } from "./components/altair/Altair";
 import ControlTray from "./components/control-tray/ControlTray";
 import cn from "classnames";
+import { isMobileDevice } from "./lib/utils";
 
 const API_KEY = process.env.REACT_APP_GEMINI_API_KEY as string;
 if (typeof API_KEY !== "string") {
@@ -41,7 +42,8 @@ function App() {
     <div className="App">
       <LiveAPIProvider url={uri} apiKey={API_KEY}>
         <div className="streaming-console">
-          <SidePanel />
+          {/* Only show the side panel on desktop */}
+          {!isMobileDevice() && <SidePanel />}
           <main>
             <div className="main-app-area">
               {/* APP goes here */}
