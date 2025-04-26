@@ -180,15 +180,24 @@ body {
     main {
       width: 100%;
       height: calc(100vh - 60px); /* Adjust for mobile UI */
+      position: relative;
+      z-index: 1;
     }
     
     .main-app-area {
       width: 100%;
       height: calc(100% - 60px);
+      background-color: rgba(28, 31, 33, 0.7); /* Add semi-transparent background */
+      border-radius: 12px;
+      backdrop-filter: blur(5px); /* Add blur effect for modern browsers */
+      -webkit-backdrop-filter: blur(5px); /* For Safari */
     }
     
     .control-tray {
       width: 100%;
+      background-color: rgba(28, 31, 33, 0.8); /* Make control tray slightly more opaque */
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
   }
 }
