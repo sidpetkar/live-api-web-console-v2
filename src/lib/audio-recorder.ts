@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { audioContext, isIOS, isMobileDevice, isSafari } from "./utils";
+import { audioContext } from "./utils";
 import AudioRecordingWorklet from "./worklets/audio-processing";
 import VolMeterWorket from "./worklets/vol-meter";
 
@@ -50,33 +50,21 @@ export class AudioRecorder extends EventEmitter {
       throw new Error("Could not request user media");
     }
 
-    // If already recording, do nothing
+    // If we're already recording, don't restart
     if (this.recording && this.stream) {
       return;
     }
 
-    // When restarting, ensure previous resources are fully cleaned up
-    if (this.stream || this.audioContext) {
-      this.stop();
-    }
+    // Always ensure previous resources are properly cleaned up
+    this.stop();
 
     this.starting = new Promise(async (resolve, reject) => {
       try {
-        // Request audio permission - in iOS this is particularly important to request each time
-        this.stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: true,
-          // On iOS, we need to specify these constraints to ensure proper permissions
-          ...(isIOS() ? {
-            // iOS-specific constraints to ensure proper permission handling
-            video: false
-          } : {})
-        });
-        
-        // For iOS Safari, we need to ensure the audio context is created after user interaction
-        // and in the same call stack as the getUserMedia call
+        // Request audio permission - critical for both desktop and mobile
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.audioContext = await audioContext({ sampleRate: this.sampleRate });
         
-        // Resume the audio context (required for iOS)
+        // iOS Safari requires the context to be resumed after creation
         if (this.audioContext.state !== "running") {
           await this.audioContext.resume();
         }
@@ -131,21 +119,33 @@ export class AudioRecorder extends EventEmitter {
     // its plausible that stop would be called before start completes
     // such as if the websocket immediately hangs up
     const handleStop = () => {
-      this.source?.disconnect();
-      this.stream?.getTracks().forEach((track) => track.stop());
-      this.stream = undefined;
+      if (this.source) {
+        this.source.disconnect();
+        this.source = undefined;
+      }
+      
+      if (this.stream) {
+        this.stream.getTracks().forEach((track) => track.stop());
+        this.stream = undefined;
+      }
+      
       this.recordingWorklet = undefined;
       this.vuWorklet = undefined;
       this.recording = false;
       
-      // Close the audioContext to ensure it's fully cleaned up
+      // Close the audioContext only if it exists and is not already closed
       if (this.audioContext && this.audioContext.state !== 'closed') {
-        this.audioContext.close();
+        // We'll close the context to clean up, but we need to be careful
+        // not to run into issues with reusing AudioContext
+        this.audioContext.close().catch(err => {
+          console.error("Error closing audio context:", err);
+        });
       }
       this.audioContext = undefined;
     };
+    
     if (this.starting) {
-      this.starting.then(handleStop);
+      this.starting.then(handleStop).catch(() => handleStop());
       return;
     }
     handleStop();

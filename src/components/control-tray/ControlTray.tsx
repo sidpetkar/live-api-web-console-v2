@@ -22,7 +22,6 @@ import { UseMediaStreamResult } from "../../hooks/use-media-stream-mux";
 import { useScreenCapture } from "../../hooks/use-screen-capture";
 import { useWebcam } from "../../hooks/use-webcam";
 import { AudioRecorder } from "../../lib/audio-recorder";
-import { isIOS, isMobileDevice } from "../../lib/utils";
 import AudioPulse from "../audio-pulse/AudioPulse";
 import "./control-tray.scss";
 import SettingsDialog from "../settings-dialog/SettingsDialog";
@@ -166,21 +165,7 @@ function ControlTray({
       <nav className={cn("actions-nav", { disabled: !connected })}>
         <button
           className={cn("action-button mic-button")}
-          onClick={() => {
-            // Toggle mute state
-            setMuted(!muted);
-            
-            // On mobile, we need a user interaction to initiate audio
-            // This ensures the mic permissions are properly activated
-            if (muted) {
-              // If currently muted and user is unmuting, ensure we have an active user gesture
-              // This helps with iOS permission issues
-              if (!connected) {
-                // If not connected, connect first to trigger a full permission request
-                connect();
-              }
-            }
-          }}
+          onClick={() => setMuted(!muted)}
         >
           {!muted ? (
             <span className="material-symbols-outlined filled">mic</span>
@@ -219,33 +204,7 @@ function ControlTray({
           <button
             ref={connectButtonRef}
             className={cn("action-button connect-toggle", { connected })}
-            onClick={async () => {
-              if (connected) {
-                disconnect();
-              } else {
-                // For iOS devices, we need special handling to ensure mic permissions work
-                if (isMobileDevice() && !muted) {
-                  // Ensure we're not muted when starting a new session on mobile
-                  // as we need that first request to go through properly
-                  try {
-                    // Pre-request audio permission before starting the stream
-                    // This helps iOS by having the permission request part of the user action
-                    if (isIOS()) {
-                      await navigator.mediaDevices.getUserMedia({ audio: true });
-                    }
-                    
-                    // Now connect normally
-                    connect();
-                  } catch (error) {
-                    console.error("Error requesting audio permissions:", error);
-                    // Still try to connect, just without audio
-                    connect();
-                  }
-                } else {
-                  connect();
-                }
-              }
-            }}
+            onClick={connected ? disconnect : connect}
           >
             <span className="material-symbols-outlined filled">
               {connected ? "pause" : "play_arrow"}
