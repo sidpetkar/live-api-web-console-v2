@@ -70,7 +70,7 @@ function ControlTray({
     useState<MediaStream | null>(null);
   const [webcam, screenCapture] = videoStreams;
   const [inVolume, setInVolume] = useState(0);
-  const [audioRecorder] = useState(() => new AudioRecorder());
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const [muted, setMuted] = useState(false);
   const renderCanvasRef = useRef<HTMLCanvasElement>(null);
   const connectButtonRef = useRef<HTMLButtonElement>(null);
@@ -83,6 +83,26 @@ function ControlTray({
       connectButtonRef.current.focus();
     }
   }, [connected]);
+
+  // Create a new AudioRecorder instance whenever connection state changes
+  useEffect(() => {
+    // Clean up old instance if it exists
+    if (audioRecorderRef.current) {
+      audioRecorderRef.current.stop();
+    }
+    
+    // Create a new instance when connection status changes
+    audioRecorderRef.current = new AudioRecorder();
+    
+    return () => {
+      // Clean up on unmount or when connection changes
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.stop();
+        audioRecorderRef.current = null;
+      }
+    };
+  }, [connected]);
+
   useEffect(() => {
     document.documentElement.style.setProperty(
       "--volume",
@@ -99,15 +119,15 @@ function ControlTray({
         },
       ]);
     };
-    if (connected && !muted && audioRecorder) {
-      audioRecorder.on("data", onData).on("volume", setInVolume).start();
+    if (connected && !muted && audioRecorderRef.current) {
+      audioRecorderRef.current.on("data", onData).on("volume", setInVolume).start();
     } else {
-      audioRecorder.stop();
+      audioRecorderRef.current?.stop();
     }
     return () => {
-      audioRecorder.off("data", onData).off("volume", setInVolume);
+      audioRecorderRef.current?.off("data", onData).off("volume", setInVolume);
     };
-  }, [connected, client, muted, audioRecorder]);
+  }, [connected, client, muted]);
 
   useEffect(() => {
     if (videoRef.current) {
