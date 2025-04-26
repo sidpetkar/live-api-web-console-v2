@@ -28,13 +28,32 @@
     <!-- iOS PWA specific -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Gemini Console">
+    <meta name="apple-mobile-web-app-title" content="VisionSync">
     <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/android-chrome-512x512.png">
     
-    <title>Gemini Live Console</title>
+    <title>VisionSync</title>
     
     <style>
-      /* Add background image */
+      /* Prevent zooming */
+      html {
+        touch-action: manipulation;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: rgba(0,0,0,0);
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        height: 100%;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
+        margin: 0;
+        padding: 0;
+      }
+      
+      /* Fixed background image */
       body::before {
         content: "";
         position: fixed;
@@ -45,8 +64,19 @@
         background-image: url('%PUBLIC_URL%/bg-2.png');
         background-position: center;
         background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
         opacity: 0.1;
         z-index: -1;
+        pointer-events: none; /* Make sure it doesn't interfere with touch */
+      }
+      
+      /* Make app feel native-like */
+      #root {
+        height: 100%;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
       }
     </style>
   </head>
