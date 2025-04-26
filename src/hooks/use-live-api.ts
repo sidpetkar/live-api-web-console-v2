@@ -94,6 +94,9 @@ export function useLiveAPI({
     if (!config) {
       throw new Error("config has not been set");
     }
+    // Ensure audio context is resumed (especially important for mobile)
+    await audioStreamerRef.current?.resume(); 
+    
     client.disconnect();
     await client.connect(config);
     setConnected(true);
