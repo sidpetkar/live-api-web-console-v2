@@ -94,16 +94,19 @@ export function useLiveAPI({
     if (!config) {
       throw new Error("config has not been set");
     }
-    // Ensure audio context is resumed (especially important for mobile)
+    // Ensure audio streamer is stopped, then resume context
+    audioStreamerRef.current?.stop();
     await audioStreamerRef.current?.resume(); 
     
-    client.disconnect();
-    await client.connect(config);
+    client.disconnect(); // Ensure previous connection is closed
+    await client.connect(config); // Start new connection
     setConnected(true);
   }, [client, setConnected, config]);
 
   const disconnect = useCallback(async () => {
     client.disconnect();
+    // Explicitly stop the audio streamer
+    audioStreamerRef.current?.stop(); 
     setConnected(false);
   }, [setConnected, client]);
 
