@@ -31,6 +31,30 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
   return window.btoa(binary);
 }
 
+// Global variables to track if we've initialized for iOS
+let hasUserInteractedWithAudio = false;
+let isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+
+// Capture user gesture early to unlock audio on iOS
+if (isIOSDevice) {
+  const handleUserInteraction = () => {
+    if (!hasUserInteractedWithAudio) {
+      // Just creating an audio context and resuming it on user gesture helps iOS
+      const tempContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      tempContext.resume().then(() => {
+        hasUserInteractedWithAudio = true;
+        // Can close it as we just needed the user gesture
+        tempContext.close();
+      }).catch(console.error);
+    }
+  };
+
+  // Listen for user interactions to unlock audio
+  window.addEventListener('touchstart', handleUserInteraction, { once: true });
+  window.addEventListener('mousedown', handleUserInteraction, { once: true });
+  window.addEventListener('keydown', handleUserInteraction, { once: true });
+}
+
 export class AudioRecorder extends EventEmitter {
   stream: MediaStream | undefined;
   audioContext: AudioContext | undefined;
@@ -38,11 +62,67 @@ export class AudioRecorder extends EventEmitter {
   recording: boolean = false;
   recordingWorklet: AudioWorkletNode | undefined;
   vuWorklet: AudioWorkletNode | undefined;
-
+  
+  // Track if worklets have been loaded
+  private workletLoaded: boolean = false;
   private starting: Promise<void> | null = null;
+  private userPermissionGranted: boolean = false;
 
   constructor(public sampleRate = 16000) {
     super();
+    this.initializeAudioContext();
+  }
+
+  // Initialize audio context early - iOS prefers this
+  private async initializeAudioContext() {
+    try {
+      this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+      
+      // Preload worklets if possible
+      if (this.audioContext) {
+        await this.preloadWorklets();
+      }
+    } catch (error) {
+      console.log("Audio context will be initialized on first user interaction");
+    }
+  }
+
+  // Preload the audio worklets
+  private async preloadWorklets() {
+    if (this.workletLoaded || !this.audioContext) return;
+    
+    try {
+      const workletName = "audio-recorder-worklet";
+      const src = createWorketFromSrc(workletName, AudioRecordingWorklet);
+      await this.audioContext.audioWorklet.addModule(src);
+      
+      const vuWorkletName = "vu-meter";
+      await this.audioContext.audioWorklet.addModule(
+        createWorketFromSrc(vuWorkletName, VolMeterWorket)
+      );
+      
+      this.workletLoaded = true;
+    } catch (error) {
+      console.error("Failed to preload worklets", error);
+    }
+  }
+
+  // Request user permission for the microphone
+  async requestPermission() {
+    if (this.userPermissionGranted) return true;
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // We don't need to keep this stream, just needed to request permission
+      stream.getTracks().forEach(track => track.stop());
+      
+      this.userPermissionGranted = true;
+      return true;
+    } catch (error) {
+      console.error("Microphone permission denied", error);
+      return false;
+    }
   }
 
   async start() {
@@ -50,38 +130,48 @@ export class AudioRecorder extends EventEmitter {
       throw new Error("Could not request user media");
     }
 
-    // If we're already recording, don't restart
+    // If already recording, do nothing
     if (this.recording && this.stream) {
       return;
     }
 
-    // Always ensure previous resources are properly cleaned up
-    this.stop();
+    // Disconnect any existing resources
+    this.disconnectResources();
+
+    // First ensure we have permission
+    const hasPermission = await this.requestPermission();
+    if (!hasPermission) {
+      throw new Error("Microphone permission denied");
+    }
 
     this.starting = new Promise(async (resolve, reject) => {
       try {
-        // Request audio permission - critical for both desktop and mobile
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+        // Ensure we have an audio context
+        if (!this.audioContext) {
+          this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+        }
         
-        // iOS Safari requires the context to be resumed after creation
+        // iOS requires the audio context to be resumed within a user gesture
         if (this.audioContext.state !== "running") {
           await this.audioContext.resume();
         }
         
+        // Request the actual stream we'll use
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         this.source = this.audioContext.createMediaStreamSource(this.stream);
 
-        const workletName = "audio-recorder-worklet";
-        const src = createWorketFromSrc(workletName, AudioRecordingWorklet);
+        // Ensure worklets are loaded
+        if (!this.workletLoaded) {
+          await this.preloadWorklets();
+        }
 
-        await this.audioContext.audioWorklet.addModule(src);
+        // Create the recording worklet
         this.recordingWorklet = new AudioWorkletNode(
           this.audioContext,
-          workletName,
+          "audio-recorder-worklet"
         );
 
         this.recordingWorklet.port.onmessage = async (ev: MessageEvent) => {
-          // worklet processes recording floats and messages converted buffer
           const arrayBuffer = ev.data.data.int16arrayBuffer;
 
           if (arrayBuffer) {
@@ -91,12 +181,8 @@ export class AudioRecorder extends EventEmitter {
         };
         this.source.connect(this.recordingWorklet);
 
-        // vu meter worklet
-        const vuWorkletName = "vu-meter";
-        await this.audioContext.audioWorklet.addModule(
-          createWorketFromSrc(vuWorkletName, VolMeterWorket),
-        );
-        this.vuWorklet = new AudioWorkletNode(this.audioContext, vuWorkletName);
+        // Create the VU meter worklet
+        this.vuWorklet = new AudioWorkletNode(this.audioContext, "vu-meter");
         this.vuWorklet.port.onmessage = (ev: MessageEvent) => {
           this.emit("volume", ev.data.volume);
         };
@@ -116,38 +202,35 @@ export class AudioRecorder extends EventEmitter {
   }
 
   stop() {
-    // its plausible that stop would be called before start completes
-    // such as if the websocket immediately hangs up
-    const handleStop = () => {
-      if (this.source) {
-        this.source.disconnect();
-        this.source = undefined;
-      }
-      
-      if (this.stream) {
-        this.stream.getTracks().forEach((track) => track.stop());
-        this.stream = undefined;
-      }
-      
-      this.recordingWorklet = undefined;
-      this.vuWorklet = undefined;
-      this.recording = false;
-      
-      // Close the audioContext only if it exists and is not already closed
-      if (this.audioContext && this.audioContext.state !== 'closed') {
-        // We'll close the context to clean up, but we need to be careful
-        // not to run into issues with reusing AudioContext
-        this.audioContext.close().catch(err => {
-          console.error("Error closing audio context:", err);
-        });
-      }
-      this.audioContext = undefined;
-    };
-    
+    // If we're in the middle of starting, wait for that to finish
     if (this.starting) {
-      this.starting.then(handleStop).catch(() => handleStop());
+      this.starting.then(() => this.disconnectResources()).catch(() => {});
       return;
     }
-    handleStop();
+    
+    this.disconnectResources();
+  }
+  
+  // Separate method to disconnect resources to avoid code duplication
+  private disconnectResources() {
+    // Disconnect and clean up the source
+    if (this.source) {
+      this.source.disconnect();
+      this.source = undefined;
+    }
+    
+    // Stop all tracks in the stream
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = undefined;
+    }
+    
+    // Reset worklet references
+    this.recordingWorklet = undefined;
+    this.vuWorklet = undefined;
+    this.recording = false;
+    
+    // Notice we DON'T close the audioContext - on iOS this can cause problems
+    // when trying to reuse audio later. Instead, we keep it and reuse it.
   }
 }

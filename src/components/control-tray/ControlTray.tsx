@@ -70,7 +70,8 @@ function ControlTray({
     useState<MediaStream | null>(null);
   const [webcam, screenCapture] = videoStreams;
   const [inVolume, setInVolume] = useState(0);
-  const audioRecorderRef = useRef<AudioRecorder | null>(null);
+  // Create a single persistent AudioRecorder
+  const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
   const renderCanvasRef = useRef<HTMLCanvasElement>(null);
   const connectButtonRef = useRef<HTMLButtonElement>(null);
@@ -78,29 +79,18 @@ function ControlTray({
   const { client, connected, connect, disconnect, volume } =
     useLiveAPIContext();
 
+  // Request microphone permission early (helps with iOS)
+  useEffect(() => {
+    // Request permission as soon as possible
+    audioRecorder.requestPermission().catch(err => {
+      console.log("Initial permission request deferred to user interaction", err);
+    });
+  }, [audioRecorder]);
+
   useEffect(() => {
     if (!connected && connectButtonRef.current) {
       connectButtonRef.current.focus();
     }
-  }, [connected]);
-
-  // Create a new AudioRecorder instance whenever connection state changes
-  useEffect(() => {
-    // Clean up old instance if it exists
-    if (audioRecorderRef.current) {
-      audioRecorderRef.current.stop();
-    }
-    
-    // Create a new instance when connection status changes
-    audioRecorderRef.current = new AudioRecorder();
-    
-    return () => {
-      // Clean up on unmount or when connection changes
-      if (audioRecorderRef.current) {
-        audioRecorderRef.current.stop();
-        audioRecorderRef.current = null;
-      }
-    };
   }, [connected]);
 
   useEffect(() => {
@@ -119,13 +109,13 @@ function ControlTray({
         },
       ]);
     };
-    if (connected && !muted && audioRecorderRef.current) {
-      audioRecorderRef.current.on("data", onData).on("volume", setInVolume).start();
+    if (connected && !muted && audioRecorder) {
+      audioRecorder.on("data", onData).on("volume", setInVolume).start();
     } else {
-      audioRecorderRef.current?.stop();
+      audioRecorder?.stop();
     }
     return () => {
-      audioRecorderRef.current?.off("data", onData).off("volume", setInVolume);
+      audioRecorder?.off("data", onData).off("volume", setInVolume);
     };
   }, [connected, client, muted]);
 
@@ -185,7 +175,18 @@ function ControlTray({
       <nav className={cn("actions-nav", { disabled: !connected })}>
         <button
           className={cn("action-button mic-button")}
-          onClick={() => setMuted(!muted)}
+          onClick={async () => {
+            // When unmuting, make sure we have permission (helps iOS)
+            if (muted) {
+              try {
+                await audioRecorder.requestPermission();
+              } catch (error) {
+                console.error("Failed to get mic permission", error);
+              }
+            }
+            
+            setMuted(!muted);
+          }}
         >
           {!muted ? (
             <span className="material-symbols-outlined filled">mic</span>
