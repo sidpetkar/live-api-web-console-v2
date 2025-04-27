@@ -30,11 +30,17 @@ const isInStandaloneMode = () => {
     : window.matchMedia('(display-mode: standalone)').matches;
 };
 
+// Check if we're on iOS specifically
+const isIOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+};
+
 export function useWebcam(): UseMediaStreamResult {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const streamAttemptCount = useRef(0);
   const lastStreamTime = useRef(0);
+  const timerId = useRef<any>(null);
   
   // Function to reset the camera stream
   const resetCameraStream = useCallback(async () => {
@@ -102,6 +108,45 @@ export function useWebcam(): UseMediaStreamResult {
     }
   }, [isStreaming, stream, resetCameraStream]);
 
+  // Monitor camera stream health
+  useEffect(() => {
+    if (stream && isStreaming) {
+      // Start a periodic check for camera health
+      if (timerId.current) clearInterval(timerId.current);
+      
+      timerId.current = setInterval(() => {
+        if (stream) {
+          const videoTracks = stream.getVideoTracks();
+          if (videoTracks.length > 0) {
+            const track = videoTracks[0];
+            
+            // Check if track appears inactive despite being "enabled"
+            if (track.enabled && track.readyState === 'live') {
+              // Get video settings to verify camera is working
+              try {
+                const settings = track.getSettings();
+                // If we can't get width/height or they're zero, camera might be stuck
+                if (!settings.width || !settings.height) {
+                  console.log("Camera settings unavailable, may need reset");
+                  resetCameraStream();
+                }
+              } catch (e) {
+                console.warn("Couldn't get camera settings:", e);
+              }
+            }
+          }
+        }
+      }, 3000);
+      
+      return () => {
+        if (timerId.current) {
+          clearInterval(timerId.current);
+          timerId.current = null;
+        }
+      };
+    }
+  }, [stream, isStreaming, resetCameraStream]);
+
   useEffect(() => {
     const handleStreamEnded = () => {
       console.log("Stream track ended event detected");
@@ -141,33 +186,60 @@ export function useWebcam(): UseMediaStreamResult {
     
     // Special handling for iOS installed PWA
     const isStandalone = isInStandaloneMode();
+    const isIOSDevice = isIOS();
+    
     if (isStandalone) {
-      console.log("Running in standalone PWA mode");
+      console.log("Running in standalone PWA mode", isIOSDevice ? "on iOS" : "");
     }
     
-    // iOS PWA workaround: request general permission first
-    if (isStandalone && isMobileDevice()) {
+    // iOS requires specific handling for camera
+    if (isIOSDevice) {
+      // For iOS, we need a user interaction to start the camera
+      // Adding a small delay can help iOS initialize camera properly
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       try {
-        // Simple media query just to trigger permission dialog
-        const simpleStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        // Immediately release this stream, we'll request a better one
-        simpleStream.getTracks().forEach(track => track.stop());
-        console.log("Pre-permission granted, now requesting optimal stream");
-      } catch (err) {
-        console.warn("Pre-permission request failed:", err);
-        // Continue anyway to try the regular request
+        // iOS PWA: Try with minimal, more compatible constraints first
+        console.log("iOS: Using minimal camera constraints to ensure compatibility");
+        const iOSStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: "environment",
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }
+        });
+        
+        console.log("iOS camera access successful");
+        
+        // Force camera initialization with a short delay
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        lastStreamTime.current = Date.now();
+        setStream(iOSStream);
+        setIsStreaming(true);
+        
+        // Check if we actually got a working video track
+        const videoTracks = iOSStream.getVideoTracks();
+        if (videoTracks.length > 0) {
+          const track = videoTracks[0];
+          console.log(`Camera track obtained: ${track.label}, enabled: ${track.enabled}`);
+          
+          // On iOS, force enable the track after a short delay
+          setTimeout(() => {
+            if (track && track.readyState === 'live') {
+              track.enabled = true;
+              console.log("Re-enabled camera track after delay");
+            }
+          }, 500);
+        }
+        
+        return iOSStream;
+      } catch (iOSError) {
+        console.error("iOS-specific camera attempt failed:", iOSError);
+        // Fall through to general handling
       }
     }
-    
-    // Base constraints with higher resolution to prevent iOS issues
-    const baseConstraints = {
-      audio: false,
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        frameRate: { ideal: 30 }
-      }
-    };
     
     // For mobile devices, we try a sequence of different constraints
     if (isMobileDevice()) {
@@ -195,7 +267,10 @@ export function useWebcam(): UseMediaStreamResult {
           
           // Second try: Any camera
           console.log("Trying with any camera...");
-          const anyCamera = await navigator.mediaDevices.getUserMedia(baseConstraints);
+          const anyCamera = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: true
+          });
           lastStreamTime.current = Date.now();
           setStream(anyCamera);
           setIsStreaming(true);
@@ -203,27 +278,6 @@ export function useWebcam(): UseMediaStreamResult {
         }
       } catch (error) {
         console.error("Camera access failed:", error);
-        
-        // For iOS PWA, try with minimal privileges
-        if (isStandalone) {
-          try {
-            console.log("PWA mode: attempting with minimal constraints");
-            const basicOptions = { 
-              video: { 
-                facingMode: "environment", 
-                width: { ideal: 640 }, 
-                height: { ideal: 480 }
-              } 
-            };
-            const basicStream = await navigator.mediaDevices.getUserMedia(basicOptions);
-            lastStreamTime.current = Date.now();
-            setStream(basicStream);
-            setIsStreaming(true);
-            return basicStream;
-          } catch (pwaErr) {
-            console.error("PWA specific attempt failed:", pwaErr);
-          }
-        }
         
         // Last attempt: Most basic constraints
         try {
@@ -241,7 +295,14 @@ export function useWebcam(): UseMediaStreamResult {
     } else {
       // For desktop, use standard constraints
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia(baseConstraints);
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 }
+          }
+        });
         lastStreamTime.current = Date.now();
         setStream(mediaStream);
         setIsStreaming(true);
@@ -258,6 +319,12 @@ export function useWebcam(): UseMediaStreamResult {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
       setIsStreaming(false);
+    }
+    
+    // Clear any pending timers
+    if (timerId.current) {
+      clearInterval(timerId.current);
+      timerId.current = null;
     }
   };
 

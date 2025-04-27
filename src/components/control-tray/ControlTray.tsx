@@ -190,6 +190,75 @@ function ControlTray({
     // Then disconnect
     disconnect();
   };
+  
+  // Enforce video stream to be attached to video element
+  useEffect(() => {
+    if (activeVideoStream && videoRef.current) {
+      console.log("Setting active video stream to video element");
+      videoRef.current.srcObject = activeVideoStream;
+      
+      // iOS requires playing the video immediately after setting srcObject
+      const playVideo = async () => {
+        if (videoRef.current) {
+          try {
+            // Sometimes we need to wait a bit for iOS to initialize
+            setTimeout(async () => {
+              try {
+                if (videoRef.current) {
+                  await videoRef.current.play();
+                  console.log("Video playback started");
+                }
+              } catch (delayedError) {
+                console.warn("Delayed play failed:", delayedError);
+              }
+            }, 300);
+            
+            // Try immediate play as well
+            await videoRef.current.play();
+          } catch (e) {
+            console.warn("Initial video play failed, will retry:", e);
+          }
+        }
+      };
+      
+      playVideo();
+    }
+  }, [activeVideoStream, videoRef]);
+  
+  // Handler for webcam button with enhanced iOS handling
+  const startWebcam = async () => {
+    try {
+      console.log("Starting webcam with enhanced iOS handling");
+      // First make sure any previous streams are stopped
+      videoStreams.filter(msr => msr !== webcam).forEach(msr => msr.stop());
+      
+      // Start webcam
+      const mediaStream = await webcam.start();
+      console.log("Webcam started, got media stream");
+      
+      // Set stream and update video element
+      setActiveVideoStream(mediaStream);
+      onVideoStreamChange(mediaStream);
+      
+      if (videoRef.current) {
+        // Make sure srcObject is set
+        videoRef.current.srcObject = mediaStream;
+        
+        // Force video to play in case it's not automatically starting
+        try {
+          await videoRef.current.play();
+          console.log("Video playback started from button handler");
+        } catch (e) {
+          console.warn("Play from button handler failed:", e);
+        }
+      }
+      
+      return mediaStream;
+    } catch (error) {
+      console.error("Failed to start webcam:", error);
+      throw error;
+    }
+  };
 
   return (
     <section className="control-tray">
@@ -234,14 +303,22 @@ function ControlTray({
               className={screenCapture.isStreaming ? "camera-active" : ""}
             />
             )}
-            <MediaStreamButton
-              isStreaming={webcam.isStreaming}
-              start={changeStreams(webcam)}
-              stop={changeStreams()}
-              onIcon="videocam_off"
-              offIcon="videocam"
-              className={webcam.isStreaming ? "camera-active" : ""}
-            />
+            {/* Use enhanced webcam handler for iOS compatibility */}
+            {webcam.isStreaming ? (
+              <button 
+                className="action-button camera-active"
+                onClick={changeStreams()}
+              >
+                <span className="material-symbols-outlined">videocam_off</span>
+              </button>
+            ) : (
+              <button 
+                className="action-button"
+                onClick={startWebcam}
+              >
+                <span className="material-symbols-outlined">videocam</span>
+              </button>
+            )}
           </>
         )}
         {children}
