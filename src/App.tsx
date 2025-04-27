@@ -199,7 +199,12 @@ function App() {
                 controls={false}
                 disablePictureInPicture={true}
                 data-webkit-playsinline="true"
-                style={{ objectFit: 'cover' }}
+                data-playsinline="true"
+                style={{ 
+                  objectFit: 'cover',
+                  width: '100%', 
+                  height: '100%'
+                }}
               />
 
               <ControlTray

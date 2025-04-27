@@ -256,42 +256,83 @@ function ControlTray({
           const playVideo = async () => {
             if (videoRef.current) {
               try {
-                // First attempt
-                await videoRef.current.play();
-                console.log("Video playback started (first attempt)");
-              } catch (e) {
-                console.warn("First play attempt failed:", e);
+                // Ensure proper video element configuration before first attempt
+                videoRef.current.autoplay = true;
+                videoRef.current.playsInline = true;
+                videoRef.current.muted = true;
+                videoRef.current.setAttribute('playsinline', 'true');
+                videoRef.current.setAttribute('webkit-playsinline', 'true');
                 
-                // Second attempt after a short delay
-                setTimeout(async () => {
-                  try {
-                    if (videoRef.current) {
-                      // Make sure video element is properly configured
-                      videoRef.current.autoplay = true;
-                      videoRef.current.playsInline = true;
-                      videoRef.current.muted = true;
-                      
-                      await videoRef.current.play();
-                      console.log("Video playback started (second attempt)");
+                // First attempt - use this special pattern for iOS PWA
+                setTimeout(() => {
+                  if (videoRef.current) {
+                    const playPromise = videoRef.current.play();
+                    // Don't await this promise, as it can hang in iOS PWA
+                    if (playPromise !== undefined) {
+                      playPromise.then(() => {
+                        console.log("Video playback started (first attempt)");
+                      }).catch(e => {
+                        console.warn("First play attempt failed:", e);
+                        
+                        // Second attempt with user interaction simulation
+                        setTimeout(() => {
+                          // Create and trigger a fake touch event to help iOS
+                          const touchEvent = new TouchEvent('touchstart', {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window
+                          });
+                          document.body.dispatchEvent(touchEvent);
+                          
+                          if (videoRef.current) {
+                            const secondPlayPromise = videoRef.current.play();
+                            if (secondPlayPromise !== undefined) {
+                              secondPlayPromise.then(() => {
+                                console.log("Video playback started (second attempt with touch)");
+                              }).catch(delayedError => {
+                                console.warn("Second play attempt failed:", delayedError);
+                                
+                                // Final attempt - completely rebuild video element
+                                setTimeout(() => {
+                                  if (videoRef.current) {
+                                    // Save the original properties
+                                    const oldSrcObject = videoRef.current.srcObject;
+                                    
+                                    // Reset and apply again
+                                    videoRef.current.srcObject = null;
+                                    
+                                    // Force a layout reflow
+                                    void videoRef.current.offsetWidth;
+                                    
+                                    // Reapply settings
+                                    videoRef.current.srcObject = oldSrcObject;
+                                    videoRef.current.muted = true;
+                                    videoRef.current.autoplay = true;
+                                    videoRef.current.playsInline = true;
+                                    videoRef.current.setAttribute('playsinline', 'true');
+                                    videoRef.current.setAttribute('webkit-playsinline', 'true');
+                                    
+                                    // Try play again
+                                    const finalPlayPromise = videoRef.current.play();
+                                    if (finalPlayPromise !== undefined) {
+                                      finalPlayPromise.then(() => {
+                                        console.log("Video playback started (final attempt)");
+                                      }).catch(finalError => {
+                                        console.error("All play attempts failed:", finalError);
+                                      });
+                                    }
+                                  }
+                                }, 500);
+                              });
+                            }
+                          }
+                        }, 300);
+                      });
                     }
-                  } catch (delayedError) {
-                    console.warn("Second play attempt failed:", delayedError);
-                    
-                    // Last attempt with longer delay and forcing reload
-                    setTimeout(async () => {
-                      try {
-                        if (videoRef.current) {
-                          videoRef.current.srcObject = null;
-                          videoRef.current.srcObject = mediaStream;
-                          await videoRef.current.play();
-                          console.log("Video playback started (final attempt)");
-                        }
-                      } catch (finalError) {
-                        console.error("All play attempts failed:", finalError);
-                      }
-                    }, 800);
                   }
-                }, 300);
+                }, 100);
+              } catch (e) {
+                console.warn("Play setup failed:", e);
               }
             }
           };

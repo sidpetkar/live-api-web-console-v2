@@ -211,8 +211,10 @@ export function useWebcam(): UseMediaStreamResult {
           iOSConstraints = {
             audio: false,
             video: { 
-              facingMode: "environment"
-              // No resolution constraints for PWA mode
+              facingMode: "environment",
+              // Add some values that still leave flexibility for iOS
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
             }
           };
         } else {

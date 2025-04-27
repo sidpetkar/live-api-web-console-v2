@@ -162,6 +162,75 @@
         });
       }
       
+      // iOS PWA Video/Audio Permission Helper
+      // This helps initialize media contexts early on iOS
+      function setupIOSMediaHandling() {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window.MSStream);
+        const isStandalone = window.navigator.standalone === true || 
+                             window.matchMedia('(display-mode: standalone)').matches;
+        
+        if (isIOS) {
+          console.log("iOS device detected, setting up media handling");
+          
+          // Helper function to initialize media contexts on user interaction
+          const initMediaContexts = () => {
+            // Create and immediately suspend an audio context to "warm up" the audio system
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioCtx.resume().then(() => {
+              console.log("Audio context initialized");
+              // Can suspend it as we just needed to initialize it
+              audioCtx.suspend();
+            });
+            
+            // For standalone PWA mode, add extra help for video playback
+            if (isStandalone) {
+              console.log("iOS PWA mode detected, adding video playback support");
+              
+              // Create a temporary video element to initialize video playback system
+              const tempVideo = document.createElement('video');
+              tempVideo.setAttribute('playsinline', '');
+              tempVideo.setAttribute('webkit-playsinline', '');
+              tempVideo.muted = true;
+              tempVideo.autoplay = true;
+              tempVideo.style.width = '1px';
+              tempVideo.style.height = '1px';
+              tempVideo.style.position = 'fixed';
+              tempVideo.style.opacity = '0.01';
+              document.body.appendChild(tempVideo);
+              
+              // Attempt to play (may fail, but still helps "warm up" the video system)
+              tempVideo.play().then(() => {
+                console.log("Temp video playback initialized");
+                // Remove after a short delay
+                setTimeout(() => {
+                  tempVideo.pause();
+                  document.body.removeChild(tempVideo);
+                }, 500);
+              }).catch(err => {
+                console.log("Temp video init normal failure:", err);
+                // Still remove it
+                setTimeout(() => {
+                  document.body.removeChild(tempVideo);
+                }, 500);
+              });
+            }
+            
+            // Remove these listeners after first user interaction
+            document.removeEventListener('touchstart', initMediaContexts);
+            document.removeEventListener('touchend', initMediaContexts);
+            document.removeEventListener('click', initMediaContexts);
+          };
+          
+          // Add listeners for user interactions
+          document.addEventListener('touchstart', initMediaContexts, { once: true });
+          document.addEventListener('touchend', initMediaContexts, { once: true });
+          document.addEventListener('click', initMediaContexts, { once: true });
+        }
+      }
+      
+      // Run the iOS media setup
+      setupIOSMediaHandling();
+      
       // Disable all scrolling
       document.addEventListener('touchmove', function(e) {
         e.preventDefault();
