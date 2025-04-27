@@ -166,6 +166,16 @@ function App() {
             />
             
             <main>
+              {/* Text Overlay Container */}
+              <div className={cn("text-overlay-container", { 'text-visible': bgZoomed })}>
+                <h1 className="overlay-title">VisionSync</h1>
+                <p className="overlay-subtitle">Experience a new way to capture, understand, and interact with the world around you</p>
+                <img src="/eye.png" alt="Eye icon" className="overlay-icon" />
+                <p className="overlay-credit">
+                  A Multimodal Experiment by <a href="https://x.com/siddhantpetkar" target="_blank" rel="noopener noreferrer">@sidpetkar</a>
+                </p>
+              </div>
+              
               <div className="settings-wrapper">
                 <SettingsDialog />
               </div>

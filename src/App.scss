@@ -54,7 +54,7 @@
 }
 
 body {
-  font-family: "Space Mono", monospace;
+  font-family: "Geist Mono", "Space Mono", monospace;
   background: var(--Neutral-00);
   margin: 0;
   padding: 0;
@@ -197,6 +197,73 @@ body {
     height: 100%;
     width: 100%;
     z-index: 1;
+
+    // Styles for the new text overlay
+    .text-overlay-container {
+      position: absolute;
+      top: 50%; // Center vertically initially
+      left: 50%;
+      // Start slightly smaller and shifted up 40px from center
+      transform: translate(-50%, calc(-50% - 40px)) scale(0.95); 
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      color: #D8FFFF; // Updated text color
+      width: 90%; // Responsive width
+      max-width: 500px;
+      z-index: 5;
+      opacity: 0; // Start hidden
+      transition: opacity 1.2s cubic-bezier(0.165, 0.84, 0.44, 1), 
+                  transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1); // Sync transition with background
+      will-change: opacity, transform;
+
+      &.text-visible {
+        opacity: 1; // Fade in
+        // End centered vertically (shifted up 40px) and scaled normally
+        transform: translate(-50%, calc(-50% - 40px)) scale(1); 
+      }
+
+      > * {
+        margin-bottom: 12px; // Default spacing
+      }
+
+      .overlay-title {
+        font-size: 28px; // Was 24px
+        font-weight: 500; // Changed from 700 to medium
+        margin-bottom: 12px;
+      }
+
+      .overlay-subtitle {
+        font-size: 18px; // Was 14px
+        font-weight: 400;
+        line-height: 1.4;
+        max-width: 350px;
+        margin-bottom: 12px;
+      }
+
+      .overlay-icon {
+        width: 36px; // Adjust size as needed
+        height: auto;
+        margin-bottom: 12px;
+      }
+
+      .overlay-credit {
+        font-size: 14px; // Was 10px
+        font-weight: 400;
+        margin-bottom: 0; // No space after last element
+
+        a {
+          color: inherit; // Use parent color
+          text-decoration: underline;
+          font-weight: 500; // Added medium weight
+
+          &:hover {
+            text-decoration: none;
+          }
+        }
+      }
+    }
   }
 
   .settings-wrapper {
@@ -240,6 +307,28 @@ body {
     .stream {
       width: 100vw;
       height: 100vh;
+    }
+  }
+  
+  // Responsive text overlay adjustments
+  .text-overlay-container {
+    .overlay-title {
+      font-size: 24px; // Slightly smaller title on mobile
+    }
+    .overlay-subtitle {
+      font-size: 16px; // Slightly smaller subtitle
+      max-width: 90%;
+    }
+    .overlay-credit {
+      font-size: 12px; // Slightly smaller credit
+    }
+    // Keep default spacing between elements (12px)
+    > * {
+      margin-bottom: 12px;
+    }
+    // Ensure last element has no bottom margin
+    .overlay-credit {
+      margin-bottom: 0;
     }
   }
 }
