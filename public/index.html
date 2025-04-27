@@ -27,7 +27,7 @@
     
     <!-- iOS PWA specific -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="VisionSync">
     <!-- Add all the required startup images for iOS -->
     <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/android-chrome-512x512.png">
@@ -46,10 +46,11 @@
         -webkit-tap-highlight-color: rgba(0,0,0,0);
         height: 100%;
         overflow: hidden;
+        background-color: #0a2559;
       }
       
       body {
-        height: 100%;
+        height: 100vh;
         overflow: hidden;
         position: fixed;
         width: 100%;
@@ -58,6 +59,7 @@
         padding: 0;
         /* Deep blue color for status bar background */
         background-color: #0a2559;
+        overscroll-behavior: none;
       }
       
       /* Fixed background image */
@@ -81,29 +83,59 @@
       /* Make app feel native-like */
       #root {
         height: 100%;
-        overflow: auto;
+        width: 100%;
+        overflow: hidden;
         -webkit-overflow-scrolling: touch;
         position: relative;
-        /* Support for iOS safe areas */
-        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        overscroll-behavior: none;
       }
       
-      /* Add extra styling for iOS status bar padding when in standalone mode */
-      @supports (padding-top: env(safe-area-inset-top)) {
-        body, .streaming-console {
-          padding-top: env(safe-area-inset-top);
-        }
-      }
-      
-      /* Status bar fix for iOS when added to home screen */
+      /* Complete solution for iOS status bar for standalone mode */
       @media all and (display-mode: standalone) {
-        html {
-          padding-top: env(safe-area-inset-top);
+        :root {
+          --safe-area-inset-top: env(safe-area-inset-top);
+        }
+        
+        html, body {
+          position: fixed;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
           background-color: #0a2559;
         }
+        
         body {
-          padding-top: 0;
+          /* Apply the background color for the status bar */
+          background-color: #0a2559;
+          margin: 0;
+          padding: 0;
         }
+        
+        /* Status bar setup */
+        body::after {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: var(--safe-area-inset-top);
+          background-color: #0a2559;
+          z-index: 10000;
+        }
+        
+        /* Ensure the app content starts below the status bar */
+        .streaming-console, #root {
+          padding-top: var(--safe-area-inset-top);
+        }
+      }
+      
+      /* Disable all scrolling */
+      * {
+        -webkit-user-select: none;
+        user-select: none;
+        -ms-user-select: none;
+        -moz-user-select: none;
+        overscroll-behavior: none;
       }
     </style>
   </head>
@@ -126,9 +158,14 @@
         });
       }
       
-      // Force proper status bar style and colors
+      // Disable all scrolling
+      document.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+      
+      // Handle iOS standalone mode status bar
       if (window.navigator.standalone === true) {
-        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'black-translucent');
+        document.body.classList.add('ios-standalone');
       }
     </script>
   </body>

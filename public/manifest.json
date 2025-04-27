@@ -20,9 +20,12 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#0a2559",
   "background_color": "#0a2559",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "permissions": ["camera", "microphone"],
+  "related_applications": []
 } 

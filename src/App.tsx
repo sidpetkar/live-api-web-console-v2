@@ -57,6 +57,30 @@ function App() {
         setBgZoomed(true);
       }, 50);
     });
+    
+    // Prevent scrolling completely
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+    };
+    
+    const preventScrollOptions = { passive: false };
+    
+    // Add scroll prevention to various events
+    document.addEventListener('touchmove', preventScroll, preventScrollOptions);
+    document.addEventListener('wheel', preventScroll, preventScrollOptions);
+    document.addEventListener('scroll', preventScroll, preventScrollOptions);
+    
+    // Prevent pull-to-refresh on mobile
+    document.body.style.overscrollBehavior = 'none';
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.height = '100%';
+    
+    return () => {
+      // Cleanup event listeners
+      document.removeEventListener('touchmove', preventScroll);
+      document.removeEventListener('wheel', preventScroll);
+      document.removeEventListener('scroll', preventScroll);
+    };
   }, []);
 
   // Wake Lock implementation to keep screen on

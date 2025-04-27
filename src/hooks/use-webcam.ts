@@ -42,32 +42,79 @@ export function useWebcam(): UseMediaStreamResult {
   }, [stream]);
 
   const start = async () => {
-    // For mobile devices, explicitly request the rear camera
-    const constraints = isMobileDevice() 
-      ? {
-          video: {
-            facingMode: { exact: "environment" }, // Force rear camera
-          },
-        }
-      : { video: true };
+    // Release any existing stream first
+    if (stream) {
+      stop();
+    }
     
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(mediaStream);
-      setIsStreaming(true);
-      return mediaStream;
-    } catch (error) {
-      // If rear camera fails, fall back to any available camera
-      if (isMobileDevice()) {
-        console.log("Rear camera unavailable, falling back to any camera");
-    const mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-    });
-    setStream(mediaStream);
-    setIsStreaming(true);
-    return mediaStream;
+    // For iOS standalone mode, Apple may require specific settings
+    const isIOSStandalone = window.navigator.standalone === true;
+    
+    // Base constraints with higher resolution to prevent iOS issues
+    const baseConstraints = {
+      audio: false,
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 }
       }
-      throw error;
+    };
+    
+    // For mobile devices, we try a sequence of different constraints
+    if (isMobileDevice()) {
+      try {
+        // First try: Environment facing camera explicitly
+        const envConstraints = {
+          audio: false,
+          video: {
+            facingMode: { exact: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
+        
+        try {
+          console.log("Attempting to access rear camera...");
+          const mediaStream = await navigator.mediaDevices.getUserMedia(envConstraints);
+          setStream(mediaStream);
+          setIsStreaming(true);
+          return mediaStream;
+        } catch (err) {
+          console.log("Rear camera failed:", err);
+          
+          // Second try: Any camera
+          console.log("Trying with any camera...");
+          const anyCamera = await navigator.mediaDevices.getUserMedia(baseConstraints);
+          setStream(anyCamera);
+          setIsStreaming(true);
+          return anyCamera;
+        }
+      } catch (error) {
+        console.error("Camera access failed:", error);
+        
+        // Last attempt: Most basic constraints
+        try {
+          console.log("Making one final attempt with minimal constraints");
+          const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          setStream(basicStream);
+          setIsStreaming(true);
+          return basicStream;
+        } catch (finalError) {
+          console.error("All camera access attempts failed:", finalError);
+          throw finalError;
+        }
+      }
+    } else {
+      // For desktop, use standard constraints
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia(baseConstraints);
+        setStream(mediaStream);
+        setIsStreaming(true);
+        return mediaStream;
+      } catch (error) {
+        console.error("Desktop camera access failed:", error);
+        throw error;
+      }
     }
   };
 
