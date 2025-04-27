@@ -18,6 +18,11 @@ import { useState, useEffect } from "react";
 import { UseMediaStreamResult } from "./use-media-stream-mux";
 import { isMobileDevice } from "../lib/utils";
 
+// Type augmentation for iOS Safari standalone mode
+interface IOSNavigator extends Navigator {
+  standalone?: boolean;
+}
+
 export function useWebcam(): UseMediaStreamResult {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -47,8 +52,10 @@ export function useWebcam(): UseMediaStreamResult {
       stop();
     }
     
-    // For iOS standalone mode, Apple may require specific settings
-    const isIOSStandalone = window.navigator.standalone === true;
+    // Check for iOS standalone mode (PWA) to apply special handling if needed
+    const isIOSStandalone = typeof (window.navigator as IOSNavigator).standalone !== 'undefined'
+      ? (window.navigator as IOSNavigator).standalone
+      : false;
     
     // Base constraints with higher resolution to prevent iOS issues
     const baseConstraints = {
