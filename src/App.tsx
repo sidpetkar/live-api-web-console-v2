@@ -177,6 +177,7 @@ function App() {
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
               />
 
               <ControlTray

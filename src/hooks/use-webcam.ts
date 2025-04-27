@@ -196,48 +196,66 @@ export function useWebcam(): UseMediaStreamResult {
     if (isIOSDevice) {
       // For iOS, we need a user interaction to start the camera
       // Adding a small delay can help iOS initialize camera properly
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 100)); // Shortened delay
       
       try {
         // iOS PWA: Try with minimal, more compatible constraints first
-        console.log("iOS: Using minimal camera constraints to ensure compatibility");
-        const iOSStream = await navigator.mediaDevices.getUserMedia({
+        console.log("iOS: Using minimal camera constraints");
+        const iOSConstraints = {
           audio: false,
-          video: {
+          video: { 
             facingMode: "environment",
-            width: { ideal: 640 },
-            height: { ideal: 480 }
+            // Use specific common resolutions
+            width: { exact: 640 }, 
+            height: { exact: 480 }
           }
-        });
+        };
         
-        console.log("iOS camera access successful");
+        const iOSStream = await navigator.mediaDevices.getUserMedia(iOSConstraints);
         
-        // Force camera initialization with a short delay
-        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log("iOS camera permission granted");
+        
+        // Wait for the stream track to be ready
+        const videoTracks = iOSStream.getVideoTracks();
+        if (videoTracks.length > 0) {
+          const track = videoTracks[0];
+          // Simple check if the track is live, iOS might need a moment
+          if (track.readyState === 'ended') {
+            console.warn("Track is already ended immediately after creation.");
+            throw new Error("Camera track ended prematurely");
+          } else if (track.readyState !== 'live') {
+              console.log("Track not immediately live, waiting briefly...");
+              await new Promise(resolve => setTimeout(resolve, 300)); // Short wait
+              if (track.readyState !== 'live') {
+                  console.warn(`Track still not live after delay. State: ${track.readyState}`);
+                  // It might still work, but log a warning
+              }
+          }
+          console.log(`iOS Camera track ready check completed: ${track.label}, state: ${track.readyState}`);
+          track.enabled = true; // Ensure it's enabled
+        } else {
+          throw new Error("No video tracks found on iOS stream");
+        }
         
         lastStreamTime.current = Date.now();
         setStream(iOSStream);
         setIsStreaming(true);
-        
-        // Check if we actually got a working video track
-        const videoTracks = iOSStream.getVideoTracks();
-        if (videoTracks.length > 0) {
-          const track = videoTracks[0];
-          console.log(`Camera track obtained: ${track.label}, enabled: ${track.enabled}`);
-          
-          // On iOS, force enable the track after a short delay
-          setTimeout(() => {
-            if (track && track.readyState === 'live') {
-              track.enabled = true;
-              console.log("Re-enabled camera track after delay");
-            }
-          }, 500);
-        }
-        
+                
         return iOSStream;
       } catch (iOSError) {
         console.error("iOS-specific camera attempt failed:", iOSError);
-        // Fall through to general handling
+        // Try one more time with just { video: true }
+        try {
+          console.log("iOS: Trying final fallback { video: true }");
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          lastStreamTime.current = Date.now();
+          setStream(fallbackStream);
+          setIsStreaming(true);
+          return fallbackStream;
+        } catch (finalIOSError) {
+           console.error("iOS final fallback failed:", finalIOSError);
+           throw finalIOSError; // Propagate the final error
+        }
       }
     }
     
