@@ -167,7 +167,15 @@ function App() {
             
             <main>
               {/* Text Overlay Container */}
-              <div className={cn("text-overlay-container", { 'text-visible': bgZoomed })}>
+              <div 
+                className={cn(
+                  "text-overlay-container", 
+                  { 
+                    'text-visible': bgZoomed, // For initial animation
+                    'text-hidden': !!videoStream // Hide when camera is on
+                  }
+                )}
+              >
                 <h1 className="overlay-title">VisionSync</h1>
                 <p className="overlay-subtitle">Experience a new way to capture, understand, and interact with the world around you</p>
                 <img src="/eye.png" alt="Eye icon" className="overlay-icon" />

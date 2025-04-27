@@ -52,7 +52,7 @@
 .progress-text {
   color: #fff;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 200;
 }
 
 @media (max-width: 768px) {

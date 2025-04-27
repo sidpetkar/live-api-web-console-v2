@@ -73,25 +73,25 @@ body {
 
 .space-mono-regular {
   font-family: "Space Mono", monospace;
-  font-weight: 400;
+  font-weight: 200;
   font-style: normal;
 }
 
 .space-mono-bold {
   font-family: "Space Mono", monospace;
-  font-weight: 700;
+  font-weight: 500;
   font-style: normal;
 }
 
 .space-mono-regular-italic {
   font-family: "Space Mono", monospace;
-  font-weight: 400;
+  font-weight: 200;
   font-style: italic;
 }
 
 .space-mono-bold-italic {
   font-family: "Space Mono", monospace;
-  font-weight: 700;
+  font-weight: 500;
   font-style: italic;
 }
 
@@ -242,13 +242,13 @@ body {
 
       .overlay-title {
         font-size: 28px; // Was 24px
-        font-weight: 500; // Medium weight (no change)
-        margin-bottom: 12px;
+        font-weight: 500; // Keep this at 500 for VisionSync
+        margin-bottom: 24px; // Doubled from 12px to 24px
       }
 
       .overlay-subtitle {
-        font-size: 18px; // Was 14px
-        font-weight: 300; // Changed from 400 to Light
+        font-size: 16px; // Was 18px, decreased by 2px
+        font-weight: 200; // Changed to 200 (lighter)
         line-height: 1.4;
         max-width: 350px;
         margin-bottom: 12px;
@@ -262,13 +262,13 @@ body {
 
       .overlay-credit {
         font-size: 14px; // Was 10px
-        font-weight: 300; // Changed from 400 to Light
+        font-weight: 200; // Changed to 200 (lighter)
         margin-bottom: 0; // No space after last element
 
         a {
           color: inherit; // Use parent color
           text-decoration: underline;
-          font-weight: 500; // Medium weight (no change)
+          font-weight: 500; // Keep @sidpetkar at 500
 
           &:hover {
             text-decoration: none;
@@ -328,7 +328,7 @@ body {
       font-size: 24px; // Slightly smaller title on mobile
     }
     .overlay-subtitle {
-      font-size: 16px; // Slightly smaller subtitle
+      font-size: 14px; // Was 16px, decreased by 2px
       max-width: 90%;
     }
     .overlay-credit {
@@ -343,4 +343,34 @@ body {
       margin-bottom: 0;
     }
   }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-family: var(--font-stack-title);
+  font-weight: 500;
+}
+
+p {
+  margin: 0;
+  font-family: var(--font-stack-body);
+  font-weight: 200;
+}
+
+button,
+label,
+select,
+option,
+input {
+  font-family: var(--font-stack-body);
+  font-weight: 200;
+}
+
+strong {
+  font-weight: 500;
 }
