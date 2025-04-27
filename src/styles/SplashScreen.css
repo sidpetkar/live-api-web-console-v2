@@ -1,0 +1,67 @@
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+  z-index: 9999;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 500px;
+  padding: 20px;
+}
+
+.logo-container {
+  margin-bottom: 40px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  justify-content: center;
+}
+
+.splash-logo {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.progress-container {
+  width: 100%;
+  height: 8px;
+  background-color: #333;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4a90e2, #63e2ff);
+  transition: width 0.2s ease-out;
+}
+
+.progress-text {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .splash-content {
+    max-width: 90%;
+  }
+  
+  .logo-container {
+    max-width: 90%;
+    margin-bottom: 30px;
+  }
+} 

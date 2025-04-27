@@ -60,12 +60,12 @@ export function useWebcam(): UseMediaStreamResult {
       // If rear camera fails, fall back to any available camera
       if (isMobileDevice()) {
         console.log("Rear camera unavailable, falling back to any camera");
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
-        setStream(mediaStream);
-        setIsStreaming(true);
-        return mediaStream;
+    const mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+    });
+    setStream(mediaStream);
+    setIsStreaming(true);
+    return mediaStream;
       }
       throw error;
     }

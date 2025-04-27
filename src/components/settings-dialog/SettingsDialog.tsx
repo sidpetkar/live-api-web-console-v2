@@ -2,7 +2,9 @@ import {
   ChangeEvent,
   FormEventHandler,
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import "./settings-dialog.scss";
@@ -18,6 +20,7 @@ import ResponseModalitySelector from "./ResponseModalitySelector";
 
 export default function SettingsDialog() {
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const { config, setConfig, connected } = useLiveAPIContext();
   const functionDeclarations: FunctionDeclaration[] = useMemo(() => {
     if (!Array.isArray(config.tools)) {
@@ -37,6 +40,20 @@ export default function SettingsDialog() {
 
     return s;
   }, [config]);
+
+  useEffect(() => {
+    if (dialogRef.current) {
+      if (open) {
+        if (!dialogRef.current.open) {
+          dialogRef.current.showModal();
+        }
+      } else {
+        if (dialogRef.current.open) {
+          dialogRef.current.close();
+        }
+      }
+    }
+  }, [open]);
 
   const updateConfig: FormEventHandler<HTMLTextAreaElement> = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -81,10 +98,22 @@ export default function SettingsDialog() {
       <button
         className="action-button material-symbols-outlined"
         onClick={() => setOpen(!open)}
+        aria-label="Settings"
       >
         settings
       </button>
-      <dialog className="dialog" style={{ display: open ? "block" : "none" }}>
+      <dialog className="dialog" ref={dialogRef} onClose={() => setOpen(false)}>
+        <div className="dialog-header">
+          <h3>Settings</h3>
+          <button 
+            className="close-button material-symbols-outlined" 
+            onClick={() => setOpen(false)}
+            aria-label="Close settings"
+          >
+            close
+          </button>
+        </div>
+        
         <div className={`dialog-container ${connected ? "disabled" : ""}`}>
           {connected && (
             <div className="connected-indicator">
@@ -94,41 +123,57 @@ export default function SettingsDialog() {
               </p>
             </div>
           )}
-          <div className="mode-selectors">
-            <ResponseModalitySelector />
-            <VoiceSelector />
+          
+          <div className="settings-section">
+            <div className="mode-selectors-container">
+              <div className="selector-group">
+                <label className="settings-label">Response modality</label>
+                <ResponseModalitySelector />
+              </div>
+              
+              <div className="selector-group">
+                <label className="settings-label">Voice</label>
+                <VoiceSelector />
+              </div>
+            </div>
           </div>
 
-          <h3>System Instructions</h3>
-          <textarea
-            className="system"
-            onChange={updateConfig}
-            value={systemInstruction}
-          />
-          <h4>Function declarations</h4>
-          <div className="function-declarations">
-            <div className="fd-rows">
-              {functionDeclarations.map((fd, fdKey) => (
-                <div className="fd-row" key={`function-${fdKey}`}>
-                  <span className="fd-row-name">{fd.name}</span>
-                  <span className="fd-row-args">
-                    {Object.keys(fd.parameters?.properties || {}).map(
-                      (item, k) => (
-                        <span key={k}>{item}</span>
-                      )
-                    )}
-                  </span>
-                  <input
-                    key={`fd-${fd.description}`}
-                    className="fd-row-description"
-                    type="text"
-                    defaultValue={fd.description}
-                    onBlur={(e) =>
-                      updateFunctionDescription(fd.name, e.target.value)
-                    }
-                  />
-                </div>
-              ))}
+          <div className="settings-section">
+            <label className="settings-label">System Instructions</label>
+            <textarea
+              className="system"
+              onChange={updateConfig}
+              value={systemInstruction}
+              placeholder="Enter system instructions here..."
+            />
+          </div>
+          
+          <div className="settings-section">
+            <label className="settings-label">Function declarations</label>
+            <div className="function-declarations">
+              <div className="fd-rows">
+                {functionDeclarations.map((fd, fdKey) => (
+                  <div className="fd-row" key={`function-${fdKey}`}>
+                    <span className="fd-row-name">{fd.name}</span>
+                    <span className="fd-row-args">
+                      {Object.keys(fd.parameters?.properties || {}).map(
+                        (item, k) => (
+                          <span key={k}>{item}</span>
+                        )
+                      )}
+                    </span>
+                    <input
+                      key={`fd-${fd.description}`}
+                      className="fd-row-description"
+                      type="text"
+                      defaultValue={fd.description}
+                      onBlur={(e) =>
+                        updateFunctionDescription(fd.name, e.target.value)
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

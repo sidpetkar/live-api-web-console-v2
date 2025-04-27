@@ -41,15 +41,16 @@ type MediaStreamButtonProps = {
   offIcon: string;
   start: () => Promise<any>;
   stop: () => any;
+  className?: string;
 };
 
 /**
  * button used for triggering webcam or screen-capture
  */
 const MediaStreamButton = memo(
-  ({ isStreaming, onIcon, offIcon, start, stop }: MediaStreamButtonProps) =>
+  ({ isStreaming, onIcon, offIcon, start, stop, className }: MediaStreamButtonProps) =>
     isStreaming ? (
-      <button className="action-button" onClick={stop}>
+      <button className={cn("action-button", className)} onClick={stop}>
         <span className="material-symbols-outlined">{onIcon}</span>
       </button>
     ) : (
@@ -156,6 +157,15 @@ function ControlTray({
     };
   }, [connected, activeVideoStream, client, videoRef]);
 
+  // Stop all video streams when disconnecting
+  useEffect(() => {
+    if (!connected && activeVideoStream) {
+      setActiveVideoStream(null);
+      onVideoStreamChange(null);
+      videoStreams.forEach((msr) => msr.stop());
+    }
+  }, [connected, activeVideoStream, onVideoStreamChange, videoStreams]);
+
   //handler for swapping from one video-stream to the next
   const changeStreams = (next?: UseMediaStreamResult) => async () => {
     if (next) {
@@ -168,6 +178,17 @@ function ControlTray({
     }
 
     videoStreams.filter((msr) => msr !== next).forEach((msr) => msr.stop());
+  };
+
+  // Custom disconnect handler that also stops video streams
+  const handleDisconnect = () => {
+    // First stop video streams
+    setActiveVideoStream(null);
+    onVideoStreamChange(null);
+    videoStreams.forEach(stream => stream.stop());
+    
+    // Then disconnect
+    disconnect();
   };
 
   return (
@@ -204,13 +225,14 @@ function ControlTray({
           <>
             {/* Hide screen share button on mobile devices */}
             {!isMobileDevice() && (
-              <MediaStreamButton
-                isStreaming={screenCapture.isStreaming}
-                start={changeStreams(screenCapture)}
-                stop={changeStreams()}
-                onIcon="cancel_presentation"
-                offIcon="present_to_all"
-              />
+            <MediaStreamButton
+              isStreaming={screenCapture.isStreaming}
+              start={changeStreams(screenCapture)}
+              stop={changeStreams()}
+              onIcon="cancel_presentation"
+              offIcon="present_to_all"
+              className={screenCapture.isStreaming ? "camera-active" : ""}
+            />
             )}
             <MediaStreamButton
               isStreaming={webcam.isStreaming}
@@ -218,6 +240,7 @@ function ControlTray({
               stop={changeStreams()}
               onIcon="videocam_off"
               offIcon="videocam"
+              className={webcam.isStreaming ? "camera-active" : ""}
             />
           </>
         )}
@@ -229,7 +252,7 @@ function ControlTray({
           <button
             ref={connectButtonRef}
             className={cn("action-button connect-toggle", { connected })}
-            onClick={connected ? disconnect : connect}
+            onClick={connected ? handleDisconnect : connect}
           >
             <span className="material-symbols-outlined filled">
               {connected ? "pause" : "play_arrow"}

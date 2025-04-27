@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <meta name="theme-color" content="#1c1f21" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f3557" />
     <meta
       name="description"
       content="Gemini Live API Web Console - Mobile-friendly interface to interact with Google's Gemini AI"
@@ -51,6 +51,8 @@
         -webkit-overflow-scrolling: touch;
         margin: 0;
         padding: 0;
+        /* Deep blue color for status bar background */
+        background-color: #0f3557;
       }
       
       /* Fixed background image */
@@ -77,6 +79,15 @@
         overflow: auto;
         -webkit-overflow-scrolling: touch;
         position: relative;
+        /* Support for iOS safe areas */
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      
+      /* Add extra styling for iOS status bar padding when in standalone mode */
+      @supports (padding-top: env(safe-area-inset-top)) {
+        .streaming-console {
+          padding-top: env(safe-area-inset-top);
+        }
       }
     </style>
   </head>
@@ -97,6 +108,11 @@
               console.log('PWA service worker registration failed:', error);
             });
         });
+      }
+      
+      // Set the correct theme color for iOS status bar
+      if (navigator.standalone) {
+        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'black-translucent';
       }
     </script>
   </body>
