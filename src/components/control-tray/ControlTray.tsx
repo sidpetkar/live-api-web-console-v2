@@ -244,12 +244,68 @@ function ControlTray({
         // Make sure srcObject is set
         videoRef.current.srcObject = mediaStream;
         
-        // Force video to play in case it's not automatically starting
-        try {
-          await videoRef.current.play();
-          console.log("Video playback started from button handler");
-        } catch (e) {
-          console.warn("Play from button handler failed:", e);
+        // iOS PWA needs additional handling
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                             (navigator as any).standalone;
+        
+        if (isIOS && isStandalone) {
+          console.log("iOS PWA detected, using enhanced video playback handling");
+          
+          // Force multiple play attempts with different timing
+          const playVideo = async () => {
+            if (videoRef.current) {
+              try {
+                // First attempt
+                await videoRef.current.play();
+                console.log("Video playback started (first attempt)");
+              } catch (e) {
+                console.warn("First play attempt failed:", e);
+                
+                // Second attempt after a short delay
+                setTimeout(async () => {
+                  try {
+                    if (videoRef.current) {
+                      // Make sure video element is properly configured
+                      videoRef.current.autoplay = true;
+                      videoRef.current.playsInline = true;
+                      videoRef.current.muted = true;
+                      
+                      await videoRef.current.play();
+                      console.log("Video playback started (second attempt)");
+                    }
+                  } catch (delayedError) {
+                    console.warn("Second play attempt failed:", delayedError);
+                    
+                    // Last attempt with longer delay and forcing reload
+                    setTimeout(async () => {
+                      try {
+                        if (videoRef.current) {
+                          videoRef.current.srcObject = null;
+                          videoRef.current.srcObject = mediaStream;
+                          await videoRef.current.play();
+                          console.log("Video playback started (final attempt)");
+                        }
+                      } catch (finalError) {
+                        console.error("All play attempts failed:", finalError);
+                      }
+                    }, 800);
+                  }
+                }, 300);
+              }
+            }
+          };
+          
+          // Make multiple play attempts
+          playVideo();
+        } else {
+          // Non-iOS standard handling
+          try {
+            await videoRef.current.play();
+            console.log("Video playback started from button handler");
+          } catch (e) {
+            console.warn("Play from button handler failed:", e);
+          }
         }
       }
       

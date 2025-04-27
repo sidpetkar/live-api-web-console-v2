@@ -196,6 +196,10 @@ function App() {
                 autoPlay
                 playsInline
                 muted
+                controls={false}
+                disablePictureInPicture={true}
+                data-webkit-playsinline="true"
+                style={{ objectFit: 'cover' }}
               />
 
               <ControlTray

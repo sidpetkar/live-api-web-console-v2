@@ -196,21 +196,38 @@ export function useWebcam(): UseMediaStreamResult {
     if (isIOSDevice) {
       // For iOS, we need a user interaction to start the camera
       // Adding a small delay can help iOS initialize camera properly
-      await new Promise(resolve => setTimeout(resolve, 100)); // Shortened delay
+      await new Promise(resolve => setTimeout(resolve, 200)); // Increased delay for iOS
       
       try {
         // iOS PWA: Try with minimal, more compatible constraints first
         console.log("iOS: Using minimal camera constraints");
-        const iOSConstraints = {
-          audio: false,
-          video: { 
-            facingMode: "environment",
-            // Use specific common resolutions
-            width: { exact: 640 }, 
-            height: { exact: 480 }
-          }
-        };
         
+        // For iOS PWA mode, we need to be even more careful with the constraints
+        let iOSConstraints;
+        
+        if (isStandalone) {
+          console.log("Using special constraints for iOS PWA mode");
+          // Ultra-conservative constraints for iOS PWA mode
+          iOSConstraints = {
+            audio: false,
+            video: { 
+              facingMode: "environment"
+              // No resolution constraints for PWA mode
+            }
+          };
+        } else {
+          // Regular iOS constraints
+          iOSConstraints = {
+            audio: false,
+            video: { 
+              facingMode: "environment",
+              width: { exact: 640 }, 
+              height: { exact: 480 }
+            }
+          };
+        }
+        
+        console.log("iOS camera constraints:", JSON.stringify(iOSConstraints));
         const iOSStream = await navigator.mediaDevices.getUserMedia(iOSConstraints);
         
         console.log("iOS camera permission granted");
@@ -219,13 +236,21 @@ export function useWebcam(): UseMediaStreamResult {
         const videoTracks = iOSStream.getVideoTracks();
         if (videoTracks.length > 0) {
           const track = videoTracks[0];
+          
+          console.log(`iOS Camera tracks:`, videoTracks.map(t => ({
+            label: t.label,
+            state: t.readyState,
+            enabled: t.enabled,
+            id: t.id
+          })));
+          
           // Simple check if the track is live, iOS might need a moment
           if (track.readyState === 'ended') {
             console.warn("Track is already ended immediately after creation.");
             throw new Error("Camera track ended prematurely");
           } else if (track.readyState !== 'live') {
               console.log("Track not immediately live, waiting briefly...");
-              await new Promise(resolve => setTimeout(resolve, 300)); // Short wait
+              await new Promise(resolve => setTimeout(resolve, 500)); // Longer wait
               if (track.readyState !== 'live') {
                   console.warn(`Track still not live after delay. State: ${track.readyState}`);
                   // It might still work, but log a warning
@@ -248,6 +273,16 @@ export function useWebcam(): UseMediaStreamResult {
         try {
           console.log("iOS: Trying final fallback { video: true }");
           const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          
+          console.log("iOS Camera tracks (fallback):", 
+            fallbackStream.getVideoTracks().map(t => ({
+              label: t.label,
+              state: t.readyState,
+              enabled: t.enabled,
+              id: t.id
+            }))
+          );
+          
           lastStreamTime.current = Date.now();
           setStream(fallbackStream);
           setIsStreaming(true);
