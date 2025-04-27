@@ -55,7 +55,10 @@
 
 body {
   font-family: "Space Mono", monospace;
-  background: var(--Neutral-30);
+  background: var(--Neutral-00);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .material-symbols-outlined {
@@ -115,18 +118,61 @@ body {
 @media (prefers-reduced-motion: no-preference) {
 }
 
+.App {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+// Add transition animations
+.app-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
+  z-index: 10;
+}
+
+.app-visible {
+  opacity: 1;
+}
+
 .streaming-console {
-  background: var(--Neutral-15);
   color: var(--gray-300);
   display: flex;
-  height: 100%;
-  width: 100%;
+  height: 100vh;
+  height: calc(100vh + env(safe-area-inset-top));
+  width: 100vw;
   position: absolute;
   top: 0;
   left: 0;
   overflow: hidden;
-  -webkit-user-select: none; /* Prevent text selection for native feel */
+  -webkit-user-select: none;
   user-select: none;
+  margin-top: calc(env(safe-area-inset-top) * -1);
+
+  .background-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 0;
+    transform: scale(1);
+    will-change: transform;
+    transition: transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+    
+    &.bg-zoomed {
+      transform: scale(1.08);
+    }
+  }
 
   a,
   a:visited,
@@ -148,67 +194,52 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex-grow: 1;
-    gap: 1rem;
-    max-width: 100%;
-    overflow: hidden;
-  }
-
-  .main-app-area {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .function-call {
-    position: absolute;
-    top: 0;
+    height: 100%;
     width: 100%;
-    height: 50%;
-    overflow-y: auto;
+    z-index: 1;
+  }
+
+  .settings-wrapper {
+    position: absolute;
+    top: calc(20px + env(safe-area-inset-top));
+    right: 20px;
+    z-index: 20;
   }
 }
 
 /* video player */
 .stream {
-  flex-grow: 1;
-  max-width: 90%;
-  border-radius: 32px;
-  max-height: fit-content;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  height: calc(100vh + env(safe-area-inset-top));
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  border-radius: 0;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  transform: none;
+}
+
+/* Make sure controls appear above video */
+.control-tray {
+  z-index: 20 !important;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Mobile-specific styles */
 @media (max-width: 768px) {
   .streaming-console {
-    flex-direction: column;
-    
-    main {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      z-index: 1;
-      touch-action: pan-y; /* Allow vertical scrolling only */
-      -webkit-overflow-scrolling: touch;
+    .settings-wrapper {
+      top: 16px;
+      right: 16px;
     }
     
-    .main-app-area {
-      width: 100%;
-      height: calc(100% - 60px);
-      background-color: rgba(28, 31, 33, 0.7); /* Add semi-transparent background */
-      border-radius: 12px;
-      backdrop-filter: blur(5px); /* Add blur effect for modern browsers */
-      -webkit-backdrop-filter: blur(5px); /* For Safari */
-      touch-action: pan-y; /* Allow vertical scrolling only */
-    }
-    
-    .control-tray {
-      width: 100%;
-      background-color: rgba(28, 31, 33, 0.8); /* Make control tray slightly more opaque */
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      position: relative;
-      z-index: 10;
+    .stream {
+      width: 100vw;
+      height: 100vh;
     }
   }
 }

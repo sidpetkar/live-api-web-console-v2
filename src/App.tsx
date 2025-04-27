@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import "./App.scss";
 import { LiveAPIProvider } from "./contexts/LiveAPIContext";
-import SidePanel from "./components/side-panel/SidePanel";
-import { Altair } from "./components/altair/Altair";
 import ControlTray from "./components/control-tray/ControlTray";
 import cn from "classnames";
-import { isMobileDevice } from "./lib/utils";
+import SettingsDialog from "./components/settings-dialog/SettingsDialog";
+import SplashScreen from "./components/splash-screen";
 
 const API_KEY = process.env.REACT_APP_GEMINI_API_KEY as string;
 if (typeof API_KEY !== "string") {
@@ -31,23 +30,69 @@ if (typeof API_KEY !== "string") {
 const host = "generativelanguage.googleapis.com";
 const uri = `wss://${host}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent`;
 
+// Get the background image URL
+const bgImageUrl = process.env.PUBLIC_URL + '/bg-2.png';
+
 function App() {
   // this video reference is used for displaying the active stream, whether that is the webcam or screen capture
   // feel free to style as you see fit
   const videoRef = useRef<HTMLVideoElement>(null);
   // either the screen capture, the video or null, if null we hide it
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  // State to control the splash screen visibility - TEMPORARY: Set to false to skip splash screen
+  const [loading, setLoading] = useState(false);
+  // State to control the fade-in animation of the main app
+  const [appVisible, setAppVisible] = useState(true);
+  // State to control the zoom animation of the background image
+  const [bgZoomed, setBgZoomed] = useState(false);
+  
+  // Trigger the zoom effect with a minimal delay to ensure animation is visible
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure the browser has rendered the initial state
+    requestAnimationFrame(() => {
+      // Add a very small timeout to ensure the initial state is rendered first
+      setTimeout(() => {
+        setBgZoomed(true);
+      }, 50);
+    });
+  }, []);
+
+  // Function to handle splash screen completion
+  const handleSplashComplete = () => {
+    // When splash screen completes, trigger the transition and zoom effect simultaneously
+    setAppVisible(true);
+    setBgZoomed(true);
+
+    // After a short delay, remove the splash screen completely
+    setTimeout(() => {
+      setLoading(false);
+    }, 800);
+  };
 
   return (
     <div className="App">
-      <LiveAPIProvider url={uri} apiKey={API_KEY}>
-        <div className="streaming-console">
-          {/* Only show the side panel on desktop */}
-          {!isMobileDevice() && <SidePanel />}
-          <main>
-            <div className="main-app-area">
-              {/* APP goes here */}
-              <Altair />
+      {loading && <SplashScreen onComplete={handleSplashComplete} />}
+      
+      <div 
+        className={cn("app-container", {
+          'app-visible': appVisible,
+          'hidden': !appVisible && !loading
+        })}
+      >
+        <LiveAPIProvider url={uri} apiKey={API_KEY}>
+          <div className="streaming-console">
+            <div 
+              className={cn("background-image", {
+                'bg-zoomed': bgZoomed
+              })} 
+              style={{ backgroundImage: `url(${bgImageUrl})` }}
+            />
+            
+            <main>
+              <div className="settings-wrapper">
+                <SettingsDialog />
+              </div>
+              
               <video
                 className={cn("stream", {
                   hidden: !videoRef.current || !videoStream,
@@ -56,19 +101,17 @@ function App() {
                 autoPlay
                 playsInline
               />
-            </div>
 
-            <ControlTray
-              videoRef={videoRef}
-              supportsVideo={true}
-              onVideoStreamChange={setVideoStream}
-              enableEditingSettings={true}
-            >
-              {/* put your own buttons here */}
-            </ControlTray>
-          </main>
-        </div>
-      </LiveAPIProvider>
+              <ControlTray
+                videoRef={videoRef}
+                supportsVideo={true}
+                onVideoStreamChange={setVideoStream}
+                enableEditingSettings={false}
+              />
+            </main>
+          </div>
+        </LiveAPIProvider>
+      </div>
     </div>
   );
 }

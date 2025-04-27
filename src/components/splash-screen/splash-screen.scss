@@ -1,0 +1,134 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  color: white;
+}
+
+.splash-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  max-width: 300px;
+  padding: 20px;
+  z-index: 1;
+}
+
+.logo-container {
+  margin-bottom: 1.5rem;
+
+  .logo {
+    width: 100px;
+    height: 100px;
+    animation: pulse 2s infinite;
+  }
+}
+
+.title {
+  margin-bottom: 20px;
+  font-size: 2rem;
+  font-weight: 500;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.progress-container {
+  width: 150px;
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 10px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3C90E6, #63E2FF);
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Media query for mobile devices */
+@media (max-width: 768px) {
+  .splash-content {
+    max-width: 260px;
+    padding: 20px;
+  }
+
+  .logo-container .logo {
+    width: 80px;
+    height: 80px;
+  }
+
+  .title {
+    font-size: 1.7rem;
+  }
+  
+  .progress-container {
+    width: 120px;
+  }
+}
+
+/* Handle safe areas for notched phones */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .splash-screen {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+} 
