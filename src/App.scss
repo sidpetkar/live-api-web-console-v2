@@ -214,21 +214,26 @@ body {
       max-width: 500px;
       z-index: 5;
       opacity: 0; // Start hidden
+      visibility: hidden; // Start hidden (structurally)
       transition: opacity 1.2s cubic-bezier(0.165, 0.84, 0.44, 1), 
-                  transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1); // Sync transition with background
+                  transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1), 
+                  visibility 0s linear 1.2s; // Delay visibility change until fade-in done
       will-change: opacity, transform;
 
       &.text-visible {
         opacity: 1; // Fade in
+        visibility: visible; // Make visible
         // End centered vertically (shifted up 40px) and scaled normally
         transform: translate(-50%, calc(-50% - 40px)) scale(1); 
+        transition-delay: 0s; // Ensure visibility transition applies immediately
       }
       
       // Style to hide text when camera is active
       &.text-hidden {
         opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s ease-out; // Faster fade out
+        pointer-events: none; 
+        visibility: hidden; // Hide structurally
+        transition: opacity 0.3s ease-out, visibility 0s linear 0.3s; // Hide visibility after fade-out
       }
 
       > * {
