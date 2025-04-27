@@ -223,6 +223,13 @@ body {
         // End centered vertically (shifted up 40px) and scaled normally
         transform: translate(-50%, calc(-50% - 40px)) scale(1); 
       }
+      
+      // Style to hide text when camera is active
+      &.text-hidden {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease-out; // Faster fade out
+      }
 
       > * {
         margin-bottom: 12px; // Default spacing
@@ -230,13 +237,13 @@ body {
 
       .overlay-title {
         font-size: 28px; // Was 24px
-        font-weight: 500; // Changed from 700 to medium
+        font-weight: 500; // Medium weight (no change)
         margin-bottom: 12px;
       }
 
       .overlay-subtitle {
         font-size: 18px; // Was 14px
-        font-weight: 400;
+        font-weight: 300; // Changed from 400 to Light
         line-height: 1.4;
         max-width: 350px;
         margin-bottom: 12px;
@@ -250,13 +257,13 @@ body {
 
       .overlay-credit {
         font-size: 14px; // Was 10px
-        font-weight: 400;
+        font-weight: 300; // Changed from 400 to Light
         margin-bottom: 0; // No space after last element
 
         a {
           color: inherit; // Use parent color
           text-decoration: underline;
-          font-weight: 500; // Added medium weight
+          font-weight: 500; // Medium weight (no change)
 
           &:hover {
             text-decoration: none;
