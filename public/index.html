@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f3557" />
+    <meta name="theme-color" content="#0a2559" />
     <meta
       name="description"
-      content="Gemini Live API Web Console - Mobile-friendly interface to interact with Google's Gemini AI"
+      content="VisionSync - Mobile-friendly interface to interact with Google's Gemini AI"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -29,7 +29,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="VisionSync">
+    <!-- Add all the required startup images for iOS -->
     <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/android-chrome-512x512.png">
+    
+    <!-- Fixed status bar color for Chrome PWA -->
+    <meta name="theme-color" content="#0a2559" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0a2559" media="(prefers-color-scheme: dark)">
     
     <title>VisionSync</title>
     
@@ -52,7 +57,7 @@
         margin: 0;
         padding: 0;
         /* Deep blue color for status bar background */
-        background-color: #0f3557;
+        background-color: #0a2559;
       }
       
       /* Fixed background image */
@@ -85,8 +90,19 @@
       
       /* Add extra styling for iOS status bar padding when in standalone mode */
       @supports (padding-top: env(safe-area-inset-top)) {
-        .streaming-console {
+        body, .streaming-console {
           padding-top: env(safe-area-inset-top);
+        }
+      }
+      
+      /* Status bar fix for iOS when added to home screen */
+      @media all and (display-mode: standalone) {
+        html {
+          padding-top: env(safe-area-inset-top);
+          background-color: #0a2559;
+        }
+        body {
+          padding-top: 0;
         }
       }
     </style>
@@ -110,9 +126,9 @@
         });
       }
       
-      // Set the correct theme color for iOS status bar
-      if (navigator.standalone) {
-        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'black-translucent';
+      // Force proper status bar style and colors
+      if (window.navigator.standalone === true) {
+        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'black-translucent');
       }
     </script>
   </body>

@@ -45,6 +45,8 @@ function App() {
   const [appVisible, setAppVisible] = useState(true);
   // State to control the zoom animation of the background image
   const [bgZoomed, setBgZoomed] = useState(false);
+  // Reference to store the wake lock
+  const wakeLockRef = useRef<any>(null);
   
   // Trigger the zoom effect with a minimal delay to ensure animation is visible
   useEffect(() => {
@@ -55,6 +57,57 @@ function App() {
         setBgZoomed(true);
       }, 50);
     });
+  }, []);
+
+  // Wake Lock implementation to keep screen on
+  useEffect(() => {
+    // Function to request wake lock
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+          
+          console.log('Wake Lock is active');
+          
+          // Add listener to reacquire wake lock if it's released
+          wakeLockRef.current.addEventListener('release', () => {
+            console.log('Wake Lock was released');
+            // Try to reacquire the wake lock if page is still visible
+            if (document.visibilityState === 'visible') {
+              requestWakeLock();
+            }
+          });
+          
+          // Handle visibility change to reacquire wake lock
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && !wakeLockRef.current) {
+              requestWakeLock();
+            }
+          });
+        } else {
+          console.log('Wake Lock API not supported');
+        }
+      } catch (err) {
+        console.error(`Failed to acquire Wake Lock: ${err}`);
+      }
+    };
+    
+    // Initialize wake lock
+    requestWakeLock();
+    
+    // Clean up on component unmount
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release()
+          .then(() => {
+            wakeLockRef.current = null;
+            console.log('Wake Lock released on unmount');
+          })
+          .catch((err: any) => {
+            console.error(`Error releasing Wake Lock: ${err}`);
+          });
+      }
+    };
   }, []);
 
   // Function to handle splash screen completion
