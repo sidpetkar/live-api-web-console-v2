@@ -23,8 +23,8 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "theme_color": "#0a2559",
-  "background_color": "#0a2559",
+  "theme_color": "#011A5D",
+  "background_color": "#011A5D",
   "orientation": "portrait",
   "permissions": ["camera", "microphone"],
   "related_applications": []

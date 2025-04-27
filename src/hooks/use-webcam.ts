@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { UseMediaStreamResult } from "./use-media-stream-mux";
 import { isMobileDevice } from "../lib/utils";
 
@@ -23,19 +23,101 @@ interface IOSNavigator extends Navigator {
   standalone?: boolean;
 }
 
+// Check if we're in iOS PWA mode
+const isInStandaloneMode = () => {
+  return typeof (window.navigator as IOSNavigator).standalone !== 'undefined'
+    ? (window.navigator as IOSNavigator).standalone
+    : window.matchMedia('(display-mode: standalone)').matches;
+};
+
 export function useWebcam(): UseMediaStreamResult {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const streamAttemptCount = useRef(0);
+  const lastStreamTime = useRef(0);
+  
+  // Function to reset the camera stream
+  const resetCameraStream = useCallback(async () => {
+    if (stream) {
+      // Stop the current stream
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+      setIsStreaming(false);
+      
+      // Attempt to restart after a short delay
+      setTimeout(() => {
+        console.log("Attempting to restart camera after visibility change");
+        start().catch(err => console.error("Camera restart failed:", err));
+      }, 500);
+    }
+  }, [stream]);
+
+  // Handle app becoming visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // If it's been more than 2 seconds since we last accessed the stream
+        const timeSinceLastStream = Date.now() - lastStreamTime.current;
+        if (timeSinceLastStream > 2000 && isStreaming) {
+          console.log("App became visible again, resetting camera");
+          resetCameraStream();
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isStreaming, resetCameraStream]);
+  
+  // Handle installed app going to background and back
+  useEffect(() => {
+    // For PWA, handle blur/focus events
+    if (isInStandaloneMode()) {
+      const handleAppBlur = () => {
+        console.log("App lost focus");
+      };
+      
+      const handleAppFocus = () => {
+        console.log("App gained focus, checking camera");
+        // If streaming but stream might be stale
+        if (isStreaming && stream) {
+          const tracks = stream.getVideoTracks();
+          // Check if camera track is still active
+          if (!tracks.length || !tracks[0].enabled || tracks[0].readyState !== 'live') {
+            console.log("Camera track not active, resetting");
+            resetCameraStream();
+          }
+        }
+      };
+      
+      window.addEventListener('blur', handleAppBlur);
+      window.addEventListener('focus', handleAppFocus);
+      
+      return () => {
+        window.removeEventListener('blur', handleAppBlur);
+        window.removeEventListener('focus', handleAppFocus);
+      };
+    }
+  }, [isStreaming, stream, resetCameraStream]);
 
   useEffect(() => {
     const handleStreamEnded = () => {
+      console.log("Stream track ended event detected");
       setIsStreaming(false);
       setStream(null);
     };
+    
     if (stream) {
       stream
         .getTracks()
-        .forEach((track) => track.addEventListener("ended", handleStreamEnded));
+        .forEach((track) => {
+          track.addEventListener("ended", handleStreamEnded);
+          // Force enable the track in case it got disabled
+          track.enabled = true;
+        });
+        
       return () => {
         stream
           .getTracks()
@@ -47,15 +129,35 @@ export function useWebcam(): UseMediaStreamResult {
   }, [stream]);
 
   const start = async () => {
+    // Record attempt time
+    lastStreamTime.current = Date.now();
+    streamAttemptCount.current++;
+    console.log(`Starting camera, attempt #${streamAttemptCount.current}`);
+    
     // Release any existing stream first
     if (stream) {
       stop();
     }
     
-    // Check for iOS standalone mode (PWA) to apply special handling if needed
-    const isIOSStandalone = typeof (window.navigator as IOSNavigator).standalone !== 'undefined'
-      ? (window.navigator as IOSNavigator).standalone
-      : false;
+    // Special handling for iOS installed PWA
+    const isStandalone = isInStandaloneMode();
+    if (isStandalone) {
+      console.log("Running in standalone PWA mode");
+    }
+    
+    // iOS PWA workaround: request general permission first
+    if (isStandalone && isMobileDevice()) {
+      try {
+        // Simple media query just to trigger permission dialog
+        const simpleStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // Immediately release this stream, we'll request a better one
+        simpleStream.getTracks().forEach(track => track.stop());
+        console.log("Pre-permission granted, now requesting optimal stream");
+      } catch (err) {
+        console.warn("Pre-permission request failed:", err);
+        // Continue anyway to try the regular request
+      }
+    }
     
     // Base constraints with higher resolution to prevent iOS issues
     const baseConstraints = {
@@ -83,6 +185,8 @@ export function useWebcam(): UseMediaStreamResult {
         try {
           console.log("Attempting to access rear camera...");
           const mediaStream = await navigator.mediaDevices.getUserMedia(envConstraints);
+          // Mark current time as successful
+          lastStreamTime.current = Date.now();
           setStream(mediaStream);
           setIsStreaming(true);
           return mediaStream;
@@ -92,6 +196,7 @@ export function useWebcam(): UseMediaStreamResult {
           // Second try: Any camera
           console.log("Trying with any camera...");
           const anyCamera = await navigator.mediaDevices.getUserMedia(baseConstraints);
+          lastStreamTime.current = Date.now();
           setStream(anyCamera);
           setIsStreaming(true);
           return anyCamera;
@@ -99,10 +204,32 @@ export function useWebcam(): UseMediaStreamResult {
       } catch (error) {
         console.error("Camera access failed:", error);
         
+        // For iOS PWA, try with minimal privileges
+        if (isStandalone) {
+          try {
+            console.log("PWA mode: attempting with minimal constraints");
+            const basicOptions = { 
+              video: { 
+                facingMode: "environment", 
+                width: { ideal: 640 }, 
+                height: { ideal: 480 }
+              } 
+            };
+            const basicStream = await navigator.mediaDevices.getUserMedia(basicOptions);
+            lastStreamTime.current = Date.now();
+            setStream(basicStream);
+            setIsStreaming(true);
+            return basicStream;
+          } catch (pwaErr) {
+            console.error("PWA specific attempt failed:", pwaErr);
+          }
+        }
+        
         // Last attempt: Most basic constraints
         try {
           console.log("Making one final attempt with minimal constraints");
           const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          lastStreamTime.current = Date.now();
           setStream(basicStream);
           setIsStreaming(true);
           return basicStream;
@@ -115,6 +242,7 @@ export function useWebcam(): UseMediaStreamResult {
       // For desktop, use standard constraints
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia(baseConstraints);
+        lastStreamTime.current = Date.now();
         setStream(mediaStream);
         setIsStreaming(true);
         return mediaStream;
